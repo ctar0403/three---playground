@@ -1,9 +1,11 @@
 import {
   ACESFilmicToneMapping,
+  AdditiveBlending,
   AmbientLight,
   Clock,
   DirectionalLight,
   EquirectangularReflectionMapping,
+  Group,
   IcosahedronGeometry,
   LinearSRGBColorSpace,
   Mesh,
@@ -17,8 +19,10 @@ import { OrbitControls, RGBELoader } from 'three/examples/jsm/Addons.js'
 import { Pane } from 'tweakpane'
 
 const params = {
-  scale: 0.15,
+  surface: 'normal',
+  scale: 0.05,
   wireframe: false,
+  cloud: false,
   light: false,
   rotate: true
 }
@@ -74,24 +78,53 @@ directionalLight.shadow.camera.far = 8
 
 scene.add(directionalLight)
 
+const group = new Group()
+scene.add(group)
+
 const loader = new TextureLoader()
-const texture = loader.load('./assets/worldColour.5400x2700.jpg')
-texture.anisotropy = renderer.capabilities.getMaxAnisotropy()
-const earth = new Mesh(
-  new IcosahedronGeometry(1, 128),
-  new MeshStandardMaterial({
-    map: texture,
-    displacementMap: loader.load('./assets/gebco_bathy_2700x1350.jpg'),
-    displacementScale: params.scale
-  })
-)
+const normalTexture = loader.load('./assets/worldColour.5400x2700.jpg')
+const nightTexture = loader.load('./assets/BlackMarble_2016_01deg.jpg')
+
+const earthGeometry = new IcosahedronGeometry(1, 128)
+const earthMaterial = new MeshStandardMaterial({
+  map: normalTexture,
+  displacementMap: loader.load('./assets/gebco_bathy_2700x1350.jpg'),
+  displacementScale: params.scale
+})
+
+const earth = new Mesh(earthGeometry, earthMaterial)
 earth.castShadow = true
 earth.receiveShadow = true
-scene.add(earth)
+
+const cloudMaterial = new MeshStandardMaterial({
+  alphaMap: loader.load('./assets/cloud_combined_2048.jpg'),
+  transparent: true,
+  opacity: 0.3
+})
+const cloud = new Mesh(earthGeometry, cloudMaterial)
+cloud.scale.setScalar(1.05)
+cloud.visible = params.cloud
+
+group.add(earth)
+group.add(cloud)
 
 const pane = new Pane({
   title: 'Parameters'
 })
+pane
+  .addBinding(params, 'surface', {
+    options: {
+      normal: 'normal',
+      night: 'night'
+    }
+  })
+  .on('change', (e) => {
+    if (e.value === 'night') {
+      earth.material.map = nightTexture
+    } else {
+      earth.material.map = normalTexture
+    }
+  })
 pane
   .addBinding(params, 'scale', {
     min: -0.4,
@@ -100,9 +133,13 @@ pane
   })
   .on('change', (e) => {
     earth.material.displacementScale = e.value
+    cloud.scale.addScalar(e.value)
   })
 pane.addBinding(params, 'wireframe').on('change', (e) => {
   earth.material.wireframe = e.value
+})
+pane.addBinding(params, 'cloud').on('change', (e) => {
+  cloud.visible = e.value
 })
 pane.addBinding(params, 'light').on('change', (e) => {
   ambientLight.visible = e.value
@@ -125,6 +162,7 @@ function animate() {
   const delta = clock.getDelta()
   if (params.rotate) {
     earth.rotation.y += delta / 12
+    cloud.rotation.y += delta / 11
   }
 
   renderer.render(scene, camera)
