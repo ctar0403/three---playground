@@ -21,6 +21,7 @@
     "vite-plugin-glsl": "^1.3.0"
   },
   "dependencies": {
+    "satellite.js": "^5.0.0",
     "three": "^0.170.0",
     "tweakpane": "^4.0.5"
   }
