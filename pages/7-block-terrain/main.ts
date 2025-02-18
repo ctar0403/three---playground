@@ -5,21 +5,18 @@ import {
   Clock,
   Color,
   DirectionalLight,
-  DoubleSide,
   InstancedMesh,
   LinearSRGBColorSpace,
   MathUtils,
-  MeshLambertMaterial,
   MeshPhongMaterial,
   Object3D,
   PerspectiveCamera,
-  PlaneGeometry,
   Scene,
   Vector2,
   WebGLRenderer
 } from 'three'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
-import { FBM } from './../../lib/three-noise'
+import { FBM } from '../../lib/three-noise'
 import { Pane } from 'tweakpane'
 
 class View {
@@ -59,7 +56,7 @@ class View {
     this.height = window.innerHeight
     this.scene = new Scene()
     this.camera = new PerspectiveCamera(75, this.width / this.height, 0.1, 1000)
-    this.camera.position.set(40, 80, 100)
+    this.camera.position.set(5, 6, 6)
     this.scene.add(this.camera)
     this.renderer = new WebGLRenderer({
       canvas: this.canvas,

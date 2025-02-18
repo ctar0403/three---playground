@@ -63,7 +63,7 @@ class View {
       rotate: false,
       seed: 0,
       scale: 10,
-      height: 20
+      height: 5
     }
 
     this.resize()

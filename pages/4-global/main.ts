@@ -1,6 +1,5 @@
 import {
   ACESFilmicToneMapping,
-  AdditiveBlending,
   AmbientLight,
   BufferGeometry,
   Clock,
@@ -17,6 +16,8 @@ import {
   Points,
   PointsMaterial,
   Scene,
+  Sprite,
+  SpriteMaterial,
   TextureLoader,
   Vector3,
   WebGLRenderer
@@ -27,7 +28,6 @@ import cityData from './assets/city.json'
 
 const params = {
   surface: 'normal',
-  scale: 0.05,
   wireframe: false,
   cloud: false,
   light: false,
@@ -114,6 +114,14 @@ const pointsGeometry = new BufferGeometry()
 const points = cityData.features.map((feature) => {
   const [lon, lat] = feature.geometry.coordinates
   const pos = latLonToSphereCoord(lat, lon, 1 + 0.01)
+
+  // Create a sprite for the city name
+  // const cityName = feature.properties.name // Assuming the city name is in properties
+  // const sprite = new Sprite(new SpriteMaterial({ color: 0xffffff }))
+  // sprite.position.set(pos.x, pos.y, pos.z + 0.05) // Adjust z position for visibility
+  // sprite.scale.set(0.1, 0.1, 1) // Adjust scale as needed
+  // group.add(sprite)
+
   return new Vector3(pos.x, pos.y, pos.z)
 })
 pointsGeometry.setFromPoints(points)
@@ -138,15 +146,7 @@ pane
       earth.material.map = normalTexture
     }
   })
-pane
-  .addBinding(params, 'scale', {
-    min: -0.4,
-    max: 0.5,
-    step: 0.001
-  })
-  .on('change', (e) => {
-    earth.material.displacementScale = e.value
-  })
+
 pane.addBinding(params, 'wireframe').on('change', (e) => {
   earth.material.wireframe = e.value
 })
