@@ -50,6 +50,12 @@ const pages: PageInfo[] = [
       'Terrain generated with the Fractal Brownian Motion (FBM) algorithm using square blocks.',
     image: '/cover/7.png',
     url: '/pages/7-block-terrain/index.html'
+  },
+  {
+    name: '3D Force Layout',
+    description: 'The 3D force-directed graph',
+    image: '/cover/8.png',
+    url: '/pages/8-3d-force-layout/index.html'
   }
 ]
 
