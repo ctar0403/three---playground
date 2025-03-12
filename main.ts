@@ -27,10 +27,10 @@ const pages: PageInfo[] = [
     url: '/pages/3-earth/index.html'
   },
   {
-    name: 'Global',
+    name: 'Globe',
     description: 'Display latitude and longitude coordinates on the Earth.',
-    image: '/cover/3.png',
-    url: '/pages/4-global/index.html'
+    image: '/cover/4.png',
+    url: '/pages/4-globe/index.html'
   },
   {
     name: 'Shaders',
