@@ -56,6 +56,13 @@ const pages: PageInfo[] = [
     description: 'The 3D force-directed graph',
     image: '/cover/8.png',
     url: '/pages/8-3d-force-layout/index.html'
+  },
+  {
+    name: 'Multiple Views',
+    description:
+      'Display different views from multiple perspectives in one renderer',
+    image: '/cover/9.png',
+    url: '/pages/9-multiple-views/index.html'
   }
 ]
 
