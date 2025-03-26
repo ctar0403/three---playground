@@ -5,6 +5,7 @@ import {
   Clock,
   Color,
   DirectionalLight,
+  HemisphereLight,
   InstancedMesh,
   LinearSRGBColorSpace,
   MathUtils,
@@ -18,6 +19,10 @@ import {
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
 import { FBM } from '../../lib/three-noise'
 import { Pane } from 'tweakpane'
+
+function getNoiseValue(fbm: FBM, v: Vector2) {
+  return Math.pow(MathUtils.mapLinear(fbm.get2(v), -1, 1, 0, 1), 2)
+}
 
 class View {
   private width: number
@@ -55,8 +60,8 @@ class View {
     this.width = window.innerWidth
     this.height = window.innerHeight
     this.scene = new Scene()
-    this.camera = new PerspectiveCamera(75, this.width / this.height, 0.1, 1000)
-    this.camera.position.set(5, 6, 6)
+    this.camera = new PerspectiveCamera(75, this.width / this.height, 0.1, 100)
+    this.camera.position.set(4, 5, 6)
     this.scene.add(this.camera)
     this.renderer = new WebGLRenderer({
       canvas: this.canvas,
@@ -108,7 +113,7 @@ class View {
       },
       generation: {
         seed: Math.random(),
-        height: 1,
+        height: 0.8,
         scale: 0.3,
         detail: 0.5,
         fuzzyness: 0.2,
@@ -145,40 +150,68 @@ class View {
   }
 
   addLight() {
-    const ambientLight = new AmbientLight(0xffffff, 4)
+    const ambientLight = new AmbientLight(0xffffff, 5)
     this.scene.add(ambientLight)
 
-    const directionalLight = new DirectionalLight(0xffffff, Math.PI)
-    directionalLight.position.set(4, 0, 2)
+    const hemisphereLight = new HemisphereLight(0xffffff, 0x2f4f4f, 0.04)
+    this.scene.add(hemisphereLight)
+
+    const directionalLight = new DirectionalLight(0xfdba74, 2.5)
+    directionalLight.position.set(-5, 3, 5)
     directionalLight.castShadow = true
     this.scene.add(directionalLight)
+
+    const directionalLight2 = new DirectionalLight(0xffffff, 0.3)
+    directionalLight2.position.set(1, 1, 1)
+    this.scene.add(directionalLight2)
   }
 
   getColor(height: number) {
     const colors = this.params.colors
-    // if (this.params.display.heightMap) {
-    // } else {
-    const assetType = (() => {
-      if (height <= colors.water.value) {
-        return 'water'
-      } else if (height <= colors.water.value + colors.shore.value) {
-        return 'shore'
-      } else if (height <= colors.water.value + colors.beach.value) {
-        return 'beach'
-      } else if (height <= colors.water.value + colors.shrub.value) {
-        return 'shrub'
-      } else if (height <= colors.water.value + colors.forest.value) {
-        return 'forest'
-      } else if (height <= colors.water.value + colors.stone.value) {
-        return 'stone'
-      } else {
-        return 'snow'
-      }
-    })()
-    const color = new Color(colors[assetType].color)
+    if (this.params.display.heightMap) {
+      const floorColor = new Color().setHSL(0.75, 1, 0.5)
+      const ceilingColor = new Color().setHSL(0, 1, 0.5)
+      const zmin = 0.05
+      const zmax = 0.5
+      const precent = (height - zmin) / zmax - zmin
+      return floorColor.clone().lerpHSL(ceilingColor, precent)
+    } else {
+      const assetType = (() => {
+        if (height <= colors.water.value) {
+          return 'water'
+        } else if (height <= colors.water.value + colors.shore.value) {
+          return 'shore'
+        } else if (height <= colors.water.value + colors.beach.value) {
+          return 'beach'
+        } else if (height <= colors.water.value + colors.shrub.value) {
+          return 'shrub'
+        } else if (height <= colors.water.value + colors.forest.value) {
+          return 'forest'
+        } else if (height <= colors.water.value + colors.stone.value) {
+          return 'stone'
+        } else {
+          return 'snow'
+        }
+      })()
+      const color = new Color(colors[assetType].color)
+      const hsl = color.getHSL({ h: 0, s: 1, l: 1 })
+      color.setHSL(
+        hsl.h,
+        hsl.s,
+        hsl.l *
+          (height <= colors.water.value
+            ? MathUtils.mapLinear(
+                Math.pow(1 - (colors.water.value - height) * 1.3, 6),
+                0,
+                1,
+                0,
+                1.4
+              )
+            : 1)
+      )
 
-    return color
-    // }
+      return color
+    }
   }
 
   generate() {
@@ -229,10 +262,7 @@ class View {
 
     surface.map((point, i) => {
       const scaledVector = point.clone().multiplyScalar(scale * generationScale)
-      const realHeight = Math.pow(
-        MathUtils.mapLinear(fbm.get2(scaledVector), -1, 1, 0, 1),
-        2
-      )
+      const realHeight = getNoiseValue(fbm, scaledVector) * generationHeight
 
       const color = this.getColor(realHeight)
       const x = point.x,
@@ -253,7 +283,7 @@ class View {
 
   addPane() {
     const pane = new Pane({
-      title: 'Parameters'
+      title: 'Block Terrain'
     })
     const colors = pane.addFolder({
       title: 'colors'
@@ -279,7 +309,9 @@ class View {
       .addBinding(this.params.display, 'heightMap', {
         label: 'heightMap'
       })
-      .on('change', () => {})
+      .on('change', () => {
+        this.generate()
+      })
 
     const generation = pane.addFolder({
       title: 'generation'
@@ -304,6 +336,7 @@ class View {
       .on('click', () => {
         this.params.generation.seed = Math.random()
         this.generate()
+        pane.refresh()
       })
   }
 }
