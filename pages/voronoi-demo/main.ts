@@ -132,7 +132,7 @@ class Demo {
     const ctx = this.ctx
     ctx.save()
 
-    ctx.fillStyle = 'hsl(146, 75.90%, 51.20%)'
+    ctx.fillStyle = 'rgb(36, 225, 118)'
 
     for (let { x, y } of this.points) {
       ctx.beginPath()

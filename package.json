@@ -1,5 +1,5 @@
 {
-  "name": "three-ts-examples",
+  "name": "playground",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -28,6 +28,7 @@
     "d3-force-3d": "^3.0.5",
     "delaunator": "^5.0.1",
     "gsap": "^3.12.7",
+    "ogl": "^1.0.11",
     "poisson-disk-sampling": "^2.3.1",
     "satellite.js": "^5.0.0",
     "simplex-noise": "^4.0.3",
