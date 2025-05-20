@@ -10,7 +10,9 @@
   },
   "devDependencies": {
     "@tweakpane/core": "^2.0.5",
+    "@types/d3-delaunay": "^6.0.4",
     "@types/delaunator": "^5.0.3",
+    "@types/earcut": "^3.0.0",
     "@types/poisson-disk-sampling": "^2.2.4",
     "@types/three": "^0.169.0",
     "eslint": "^9.14.0",
@@ -25,8 +27,10 @@
   "dependencies": {
     "@tweenjs/tween.js": "^25.0.0",
     "alea": "^1.0.1",
+    "d3-delaunay": "^6.0.4",
     "d3-force-3d": "^3.0.5",
     "delaunator": "^5.0.1",
+    "earcut": "^3.0.1",
     "gsap": "^3.12.7",
     "ogl": "^1.0.11",
     "poisson-disk-sampling": "^2.3.1",
