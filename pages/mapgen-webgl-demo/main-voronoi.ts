@@ -13,7 +13,7 @@ import {
 import earcut from 'earcut'
 import PoissonDiskSampling from 'poisson-disk-sampling'
 import alea from 'alea'
-import { NoiseOptions } from './utils'
+import { NoiseOptions } from '../mapgen-demo/utils'
 import { Pane } from 'tweakpane'
 
 type Point = {
@@ -23,6 +23,7 @@ type Point = {
 
 type Params = {
   gridSize: number
+  jitter: number
   margin: number
   noise: NoiseOptions
   display: {
@@ -460,12 +461,16 @@ class Demo {
     this.scene = new Transform()
     this.generatePoints()
     this.generateDelaunay()
+    // for (const child of this.scene.children) {
+    //   child.setParent(null)
+    // }
     this.render()
   }
 }
 
 const params: Params = {
   gridSize: 40,
+  jitter: 10,
   margin: 0,
   noise: {
     seed: 1994
@@ -476,7 +481,7 @@ const params: Params = {
     centers: false,
     triangles: false,
     cellEdges: false,
-    cells: true
+    cells: false
   }
 }
 
@@ -486,6 +491,7 @@ demo.render()
 const pane = new Pane({
   title: 'mapgen-webgl-demo'
 })
+
 pane
   .addBinding(params, 'gridSize', {
     min: 8,
@@ -497,10 +503,6 @@ pane
       demo.rerender(params)
     }
   })
-const noise = pane.addFolder({
-  title: 'noise'
-})
-noise.addBinding(params.noise, 'seed').on('change', (e) => {})
 
 const display = pane.addFolder({
   title: 'display'
