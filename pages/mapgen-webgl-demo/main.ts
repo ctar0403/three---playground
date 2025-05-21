@@ -1,6 +1,6 @@
 // import Delaunator from 'delaunator'
 import { Delaunay, Voronoi } from 'd3-delaunay'
-import { getColor } from './utils'
+import { fbm, getColor, getElevationColor, makeFbmGenerator } from './utils'
 import {
   Camera,
   OGLRenderingContext,
@@ -32,6 +32,7 @@ type Params = {
     triangles?: boolean
     cellEdges?: boolean
     cells?: boolean
+    cellsByEvelation?: boolean
   }
 }
 
@@ -48,6 +49,8 @@ class Demo {
   private points: Point[] = []
   private delaunay!: Delaunay<Float64Array<ArrayBufferLike>>
   private voronoi!: Voronoi<Float64Array<ArrayBufferLike>>
+  private cells: Delaunay.Polygon[] = []
+  private elevations: number[] = []
 
   constructor(dom: HTMLDivElement, params: Params) {
     this.dom = dom
@@ -56,7 +59,7 @@ class Demo {
     })
 
     this.gl = this.renderer.gl
-
+    const gl = this.gl
     this.camera = new Camera(this.gl, {
       near: 0.1,
       far: 1000
@@ -67,6 +70,7 @@ class Demo {
     this.resize()
     this.update()
     this.gl.clearColor(1, 1, 1, 0)
+
     this.dom.appendChild(this.gl.canvas)
 
     this.scene = new Transform()
@@ -75,6 +79,7 @@ class Demo {
 
     this.generatePoints()
     this.generateDelaunay()
+    this.assignElevation()
   }
 
   resize() {
@@ -87,10 +92,10 @@ class Demo {
       this.renderer.setSize(this.width, this.height)
 
       this.camera.orthographic({
-        left: -20,
+        left: 0,
         right: this.width,
         top: this.height,
-        bottom: -20
+        bottom: 0
       })
     }
     window.addEventListener('resize', _resize, false)
@@ -106,7 +111,7 @@ class Demo {
   }
 
   generatePoints() {
-    const prng = alea('1199')
+    const prng = alea(this.params.noise.seed)
     const pds = new PoissonDiskSampling(
       {
         shape: [this.width, this.height],
@@ -127,6 +132,9 @@ class Demo {
       (p) => p.y
     )
     this.voronoi = this.delaunay.voronoi([0, 0, this.width, this.height])
+    this.cells = Array.from({ length: this.points.length }, (_, i) =>
+      this.voronoi.cellPolygon(i)
+    )
   }
 
   // 获取同一三角形中 顺时针的下一条边
@@ -318,11 +326,11 @@ class Demo {
   }
 
   renderCellEdges() {
+    console.log('render cell edges')
     const gl = this.gl
+
+    const cells = this.cells
     const positions: number[] = []
-    const cells = Array.from({ length: this.points.length }, (_, i) =>
-      this.voronoi.cellPolygon(i)
-    )
 
     // 会有重复边
     for (let i = 0; i < cells.length; i++) {
@@ -375,21 +383,17 @@ class Demo {
   }
 
   renderCells() {
-    const voronoi = this.voronoi
+    const cells = this.cells
     let indexOffset = 0
     const gl = this.gl
     const positions: number[] = []
     const indices: number[] = []
     const colors: number[] = []
 
-    const polygons = Array.from({ length: this.points.length }, (_, i) =>
-      voronoi.cellPolygon(i)
-    )
-
-    for (let i = 0; i < polygons.length; i++) {
-      const p = polygons[i]
+    for (let i = 0; i < cells.length; i++) {
+      const p = cells[i]
       const flat = p.flat()
-      const color = getColor(i / polygons.length)
+      const color = getColor(i / cells.length)
       for (let i = 0; i < flat.length / 2; i++) {
         colors.push(...color)
       }
@@ -445,6 +449,92 @@ class Demo {
     mesh.setParent(this.scene)
   }
 
+  renderCellsByElevation() {
+    const cells = this.cells
+    const elevations = this.elevations
+    let indexOffset = 0
+    const gl = this.gl
+    const positions: number[] = []
+    const indices: number[] = []
+    const colors: number[] = []
+
+    for (let i = 0; i < cells.length; i++) {
+      const p = cells[i]
+      const flat = p.flat()
+      const color = getElevationColor(elevations[i])
+      for (let i = 0; i < flat.length / 2; i++) {
+        colors.push(...color)
+      }
+      const cellIndices = earcut(flat)
+      positions.push(...flat)
+      for (let i = 0; i < cellIndices.length; i++) {
+        indices.push(cellIndices[i] + indexOffset)
+      }
+      indexOffset += flat.length / 2
+    }
+
+    const geometry = new Geometry(gl, {
+      position: { size: 2, data: new Float32Array(positions) },
+      index: { data: new Uint32Array(indices) },
+      color: {
+        size: 4,
+        data: new Float32Array(colors)
+      }
+    })
+
+    const program = new Program(gl, {
+      vertex: `
+        attribute vec2 position;
+        attribute vec4 color;
+        varying vec4 vColor;
+        uniform mat4 modelViewMatrix;
+        uniform mat4 projectionMatrix;
+
+        void main() {
+          vColor = color;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 0.0, 1.0);
+        }
+      `,
+      fragment: `
+        precision highp float;
+        varying vec4 vColor;
+
+        void main() {
+          gl_FragColor = vec4(vColor);
+        }
+      `,
+      cullFace: null,
+      transparent: true
+    })
+
+    gl.enable(gl.BLEND)
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+    const mesh = new Mesh(gl, {
+      geometry,
+      program,
+      mode: gl.TRIANGLES
+    })
+    mesh.setParent(this.scene)
+  }
+
+  assignElevation() {
+    const points = this.points
+    this.elevations = []
+    // const fbm = makeFbmGenerator(this.params.noise)
+    for (let i = 0; i < points.length; i++) {
+      let nx = points[i].x / this.width
+      let ny = points[i].y / this.height
+      const elevation = fbm(nx, ny, this.params.noise)
+      this.elevations.push(elevation)
+    }
+
+    console.log(
+      this.elevations.length,
+      Math.max(...this.elevations),
+      Math.min(...this.elevations)
+    )
+  }
+
   render() {
     const display = this.params.display
     display.points && this.renderPoints()
@@ -453,6 +543,7 @@ class Demo {
     display.triangles && this.renderTriangles()
     display.cellEdges && this.renderCellEdges()
     display.cells && this.renderCells()
+    display.cellsByEvelation && this.renderCellsByElevation()
   }
 
   rerender(params: Params) {
@@ -460,15 +551,21 @@ class Demo {
     this.scene = new Transform()
     this.generatePoints()
     this.generateDelaunay()
+    this.assignElevation()
     this.render()
   }
 }
 
 const params: Params = {
-  gridSize: 40,
+  gridSize: 20,
   margin: 0,
   noise: {
-    seed: 1994
+    seed: 1994,
+    scale: 1,
+    persistance: 0.5,
+    lacunarity: 2,
+    octaves: 6,
+    redistribution: 1
   },
   display: {
     points: false,
@@ -476,7 +573,8 @@ const params: Params = {
     centers: false,
     triangles: false,
     cellEdges: false,
-    cells: true
+    cells: false,
+    cellsByEvelation: false
   }
 }
 
@@ -488,7 +586,7 @@ const pane = new Pane({
 })
 pane
   .addBinding(params, 'gridSize', {
-    min: 8,
+    min: 2,
     max: 50,
     step: 1
   })
@@ -500,7 +598,65 @@ pane
 const noise = pane.addFolder({
   title: 'noise'
 })
-noise.addBinding(params.noise, 'seed').on('change', (e) => {})
+noise
+  .addBinding(params.noise, 'seed', {
+    min: 100,
+    max: 6000,
+    step: 1
+  })
+  .on('change', (e) => {
+    if (e.last) {
+      demo.rerender(params)
+    }
+  })
+
+noise
+  .addBinding(params.noise, 'scale', {
+    min: 0,
+    max: 8,
+    step: 0.01
+  })
+  .on('change', (e) => {
+    if (e.last) {
+      demo.rerender(params)
+    }
+  })
+
+noise
+  .addBinding(params.noise, 'octaves', {
+    min: 1,
+    max: 12,
+    step: 1
+  })
+  .on('change', (e) => {
+    if (e.last) {
+      demo.rerender(params)
+    }
+  })
+
+noise
+  .addBinding(params.noise, 'persistance', {
+    min: 0,
+    max: 1,
+    step: 0.01
+  })
+  .on('change', (e) => {
+    if (e.last) {
+      demo.rerender(params)
+    }
+  })
+
+noise
+  .addBinding(params.noise, 'redistribution', {
+    min: 0,
+    max: 5,
+    step: 1
+  })
+  .on('change', (e) => {
+    if (e.last) {
+      demo.rerender(params)
+    }
+  })
 
 const display = pane.addFolder({
   title: 'display'
@@ -521,5 +677,8 @@ display.addBinding(params.display, 'cellEdges').on('change', (e) => {
   demo.rerender(params)
 })
 display.addBinding(params.display, 'cells').on('change', (e) => {
+  demo.rerender(params)
+})
+display.addBinding(params.display, 'cellsByEvelation').on('change', (e) => {
   demo.rerender(params)
 })
